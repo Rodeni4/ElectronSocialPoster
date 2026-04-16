@@ -5,7 +5,7 @@
   "description": "ElectronSocialPoster",
   "main": "dist/main/main.js",
   "scripts": {
-    "build": "tsc && npm run copy-static",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json && npm run copy-static",
     "copy-static": "copyfiles -u 1 \"src/renderer/index.html\" \"src/renderer/styles/**/*\" dist",
     "start": "npm run build && electron ."
   },
