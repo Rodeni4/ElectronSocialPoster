@@ -9,6 +9,22 @@ type VkConfig = {
   groupId: number | null;
   groupName: string | null;
   isConnected: boolean;
+  userTokenEncrypted: string | null;
+  userId: number | null;
+  userName: string | null;
+  userAvatar: string | null;
+  userScreenName: string | null;
+  userConnected: boolean;
+};
+
+type VkUserRendererState = {
+  userTokenSaved: boolean;
+  userTokenMasked: string;
+  userId: number | null;
+  userName: string;
+  userAvatar: string;
+  userScreenName: string;
+  userConnected: boolean;
 };
 
 type VkRendererState = {
@@ -41,7 +57,13 @@ function defaultConfig(): VkConfig {
     groupValue: null,
     groupId: null,
     groupName: null,
-    isConnected: false
+    isConnected: false,
+    userTokenEncrypted: null,
+    userId: null,
+    userName: null,
+    userAvatar: null,
+    userScreenName: null,
+    userConnected: false
   };
 }
 
@@ -77,7 +99,13 @@ function readConfig(): VkConfig {
       groupValue: parsed.groupValue ?? null,
       groupId: parsed.groupId ?? null,
       groupName: parsed.groupName ?? null,
-      isConnected: parsed.isConnected ?? false
+      isConnected: parsed.isConnected ?? false,
+      userTokenEncrypted: parsed.userTokenEncrypted ?? null,
+      userId: parsed.userId ?? null,
+      userName: parsed.userName ?? null,
+      userAvatar: parsed.userAvatar ?? null,
+      userScreenName: parsed.userScreenName ?? null,
+      userConnected: parsed.userConnected ?? false
     };
   } catch {
     return defaultConfig();
@@ -188,7 +216,14 @@ function saveVkSettings(token: string, groupValue: string): VkRendererState {
     groupValue: normalizedGroup,
     groupId: null,
     groupName: null,
-    isConnected: true
+    isConnected: true,
+
+    userTokenEncrypted: null,
+    userId: null,
+    userName: null,
+    userAvatar: null,
+    userScreenName: null,
+    userConnected: false
   };
 
   writeConfig(config);
@@ -306,6 +341,93 @@ function createWindow(): void {
   win.loadFile(path.join(__dirname, '../renderer/index.html'));
 }
 
+
+function getUserRendererState(): VkUserRendererState {
+  const config = readConfig();
+
+  let userTokenMasked = '';
+  let userTokenSaved = false;
+
+  if (config.userTokenEncrypted) {
+    try {
+      const token = decryptToken(config.userTokenEncrypted);
+      userTokenMasked = maskToken(token);
+      userTokenSaved = true;
+    } catch {
+      userTokenMasked = 'Токен сохранён';
+      userTokenSaved = true;
+    }
+  }
+
+  return {
+    userTokenSaved,
+    userTokenMasked,
+    userId: config.userId ?? null,
+    userName: config.userName ?? '',
+    userAvatar: config.userAvatar ?? '',
+    userScreenName: config.userScreenName ?? '',
+    userConnected: config.userConnected ?? false
+  };
+}
+
+
+async function saveUserSettings(token: string): Promise<VkUserRendererState> {
+  const normalizedToken = token.trim();
+
+  if (!normalizedToken) {
+    throw new Error('Введите пользовательский токен.');
+  }
+
+  const users = await vkApiRequest<Array<{
+    id: number;
+    first_name: string;
+    last_name: string;
+    photo_100?: string;
+    screen_name?: string;
+  }>>('users.get', {
+    access_token: normalizedToken,
+    fields: 'photo_100,screen_name'
+  });
+
+  const userInfo = users[0];
+
+  if (!userInfo) {
+    throw new Error('Не удалось получить данные пользователя.');
+  }
+
+  const config = readConfig();
+
+  config.userTokenEncrypted = encryptToken(normalizedToken);
+  config.userId = userInfo.id;
+  config.userName = `${userInfo.first_name} ${userInfo.last_name}`;
+  config.userAvatar = userInfo.photo_100 ?? null;
+  config.userScreenName = userInfo.screen_name ?? null;
+  config.userConnected = true;
+
+  writeConfig(config);
+
+  return getUserRendererState();
+}
+
+function clearUserSettings(): VkUserRendererState {
+  const config = readConfig();
+
+  config.userTokenEncrypted = null;
+  config.userId = null;
+  config.userName = null;
+  config.userAvatar = null;
+  config.userScreenName = null;
+  config.userConnected = false;
+
+  writeConfig(config);
+
+  return getUserRendererState();
+}
+
+
+
+
+
 app.whenReady().then(() => {
   ipcMain.handle('vk:get-settings', () => {
     return getRendererState();
@@ -325,6 +447,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle('vk:publish-post', async (_event, payload: { message: string }) => {
     return publishVkPost(payload.message);
+  });
+
+  ipcMain.handle('vk-user:get-settings', () => {
+    return getUserRendererState();
+  });
+
+  ipcMain.handle('vk-user:save-settings', (_event, payload: { token: string }) => {
+    return saveUserSettings(payload.token);
+  });
+
+  ipcMain.handle('vk-user:disconnect', () => {
+    return clearUserSettings();
   });
 
   createWindow();

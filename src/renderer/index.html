@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Electron Social Poster</title>
   <link rel="stylesheet" href="./styles/main.css" />
@@ -14,13 +14,13 @@
   <div class="app-shell">
     <section class="vk-card">
       <div class="vk-card__header">
-        <div class="vk-card__title">VK</div>
+        <div class="vk-card__title">VK Group</div>
 
         <div class="vk-card__header-actions">
           <div id="vkStatusBadge" class="status-badge status-badge--off">Не подключено</div>
 
           <button id="vkDisconnectBtn" class="icon-action-btn icon-action-btn--danger" type="button"
-            title="Отключить VK" aria-label="Отключить VK" hidden>
+            title="Отключить VK Group" aria-label="Отключить VK Group" hidden>
             ×
           </button>
         </div>
@@ -57,7 +57,6 @@
               </button>
             </span>
           </div>
-
           <div class="summary-row">
             <span class="summary-label">Токен</span>
             <span class="summary-value summary-value--with-action">
@@ -78,6 +77,69 @@
           <div class="actions actions--multi">
             <button id="vkGroupSaveBtn" class="btn btn--primary">Сохранить группу</button>
             <button id="vkGroupCancelBtn" class="btn">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="vk-card">
+      <div class="vk-card__header">
+        <div class="vk-card__title">VK User</div>
+
+        <div class="vk-card__header-actions">
+          <div id="vkUserStatusBadge" class="status-badge status-badge--off">Не подключено</div>
+
+          <button id="vkUserDisconnectBtn" class="icon-action-btn icon-action-btn--danger" type="button"
+            title="Отключить VK User" aria-label="Отключить VK User" hidden>
+            ×
+          </button>
+        </div>
+      </div>
+
+      <div id="vkUserAlert" class="alert alert--closable" hidden>
+        <span id="vkUserAlertText"></span>
+        <button id="vkUserAlertCloseBtn" class="alert-close-btn" type="button"
+          aria-label="Закрыть уведомление">×</button>
+      </div>
+
+      <div id="vkUserSetupView">
+        <div class="field">
+          <input id="vkUserTokenInput" type="password" placeholder="Токен пользователя VK" autocomplete="off" />
+        </div>
+
+        <div class="actions">
+          <button id="vkUserSaveBtn" class="btn btn--primary">Сохранить</button>
+        </div>
+      </div>
+
+      <div id="vkUserConnectedView" hidden>
+        <div class="summary">
+          <div class="summary-row">
+            <span class="summary-label">Пользователь</span>
+            <span class="summary-value">
+              <span id="vkUserNameText">—</span>
+            </span>
+          </div>
+
+          <div class="summary-row">
+            <span class="summary-label">Токен</span>
+            <span class="summary-value summary-value--with-action">
+              <span id="vkUserTokenText"></span>
+              <button id="vkUserChangeTokenBtn" class="icon-action-btn" type="button" title="Сменить токен"
+                aria-label="Сменить токен">
+                ×
+              </button>
+            </span>
+          </div>
+        </div>
+
+        <div class="vk-user-profile">
+          <div class="vk-user-profile__avatar-wrap">
+            <img id="vkUserAvatar" class="vk-user-profile__avatar" src="" alt="Аватар пользователя VK" hidden />
+          </div>
+
+          <div class="vk-user-profile__meta">
+            <div id="vkUserScreenName" class="vk-user-profile__screen-name"></div>
           </div>
         </div>
       </div>

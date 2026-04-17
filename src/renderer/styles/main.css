@@ -306,3 +306,40 @@ body {
   margin-top: 10px;
   font-size: 14px;
 }
+
+.vk-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.vk-user-profile__avatar-wrap {
+  flex: 0 0 auto;
+}
+
+.vk-user-profile__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f3f6fb;
+}
+
+.vk-user-profile__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vk-user-profile__screen-name {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #6b7280;
+  word-break: break-word;
+}
