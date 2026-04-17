@@ -10,6 +10,13 @@ type VkRendererState = {
   encryptionAvailable: boolean;
 };
 
+type VkPublishResult = {
+  success: boolean;
+  error?: string;
+  postUrl?: string;
+  postId?: number;
+};
+
 contextBridge.exposeInMainWorld('vkAPI', {
   getSettings: (): Promise<VkRendererState> => ipcRenderer.invoke('vk:get-settings'),
 
@@ -19,5 +26,8 @@ contextBridge.exposeInMainWorld('vkAPI', {
   updateGroup: (payload: { groupValue: string }): Promise<VkRendererState> =>
     ipcRenderer.invoke('vk:update-group', payload),
 
-  disconnect: (): Promise<VkRendererState> => ipcRenderer.invoke('vk:disconnect')
+  disconnect: (): Promise<VkRendererState> => ipcRenderer.invoke('vk:disconnect'),
+
+  publishPost: (payload: { message: string }): Promise<VkPublishResult> =>
+    ipcRenderer.invoke('vk:publish-post', payload)
 });

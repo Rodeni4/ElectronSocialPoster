@@ -7,6 +7,7 @@ declare global {
       saveSettings: (payload: { token: string; groupValue: string }) => Promise<VkRendererState>;
       updateGroup: (payload: { groupValue: string }) => Promise<VkRendererState>;
       disconnect: () => Promise<VkRendererState>;
+      publishPost: (payload: { message: string }) => Promise<VkPublishResult>;
     };
   }
 }
@@ -19,6 +20,13 @@ type VkRendererState = {
   groupName: string;
   isConnected: boolean;
   encryptionAvailable: boolean;
+};
+
+type VkPublishResult = {
+  success: boolean;
+  error?: string;
+  postUrl?: string;
+  postId?: number;
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -46,6 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const vkGroupSaveBtn = document.getElementById('vkGroupSaveBtn') as HTMLButtonElement | null;
   const vkGroupCancelBtn = document.getElementById('vkGroupCancelBtn') as HTMLButtonElement | null;
 
+  const vkPostText = document.getElementById('vkPostText') as HTMLTextAreaElement | null;
+  const vkPostButton = document.getElementById('vkPostButton') as HTMLButtonElement | null;
+  const vkPostStatus = document.getElementById('vkPostStatus') as HTMLDivElement | null;
+
   const requiredElements = [
     vkStatusBadge,
     vkAlert,
@@ -65,7 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
     vkGroupEditBox,
     vkGroupEditInput,
     vkGroupSaveBtn,
-    vkGroupCancelBtn
+    vkGroupCancelBtn,
+    vkPostText,
+    vkPostButton,
+    vkPostStatus
   ];
 
   if (requiredElements.some((el) => !el)) {
@@ -95,6 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
     vkStatusBadge!.className = `status-badge status-badge--${mode}`;
   }
 
+  function setPostStatus(message: string, type: 'idle' | 'success' | 'error' | 'loading' = 'idle'): void {
+    vkPostStatus!.textContent = message;
+    vkPostStatus!.className = `post-status post-status--${type}`;
+  }
+
   function renderState(state: VkRendererState): void {
     if (state.isConnected) {
       setBadge('Подключено', 'on');
@@ -111,6 +131,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       vkGroupInput!.value = state.groupValue || '';
       vkTokenInput!.value = '';
+
+      vkPostButton!.disabled = false;
+      vkPostText!.disabled = false;
+
+      if (!vkPostStatus!.textContent) {
+        setPostStatus('');
+      }
     } else {
       setBadge('Не подключено', 'off');
 
@@ -120,6 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       vkGroupInput!.value = state.groupValue || '';
       vkTokenInput!.value = '';
+
+      vkPostButton!.disabled = true;
+      vkPostText!.disabled = true;
+      setPostStatus('Сначала подключите VK.', 'idle');
     }
   }
 
@@ -130,6 +161,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isLoading) {
       setBadge('Проверяем...', 'loading');
+    }
+  }
+
+  function setPostLoadingState(isLoading: boolean): void {
+    vkPostButton!.disabled = isLoading;
+    vkPostText!.disabled = isLoading;
+
+    if (isLoading) {
+      setPostStatus('Отправка...', 'loading');
     }
   }
 
@@ -249,6 +289,41 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       setBadge('Ошибка', 'error');
       showAlert(error instanceof Error ? error.message : 'Не удалось отключить VK.');
+    }
+  });
+
+  vkPostButton!.addEventListener('click', async () => {
+    try {
+      hideAlert();
+
+      const message = vkPostText!.value.trim();
+
+      if (!message) {
+        setPostStatus('Введите текст поста.', 'error');
+        vkPostText!.focus();
+        return;
+      }
+
+      setPostLoadingState(true);
+
+      const result = await window.vkAPI!.publishPost({ message });
+
+      if (result.success) {
+        vkPostText!.value = '';
+
+        if (result.postUrl) {
+          setPostStatus(`Пост опубликован: ${result.postUrl}`, 'success');
+        } else {
+          setPostStatus('Пост опубликован.', 'success');
+        }
+      } else {
+        setPostStatus(result.error || 'Не удалось опубликовать пост.', 'error');
+      }
+    } catch (error) {
+      setPostStatus(error instanceof Error ? error.message : 'Ошибка отправки поста.', 'error');
+    } finally {
+      const state = await window.vkAPI!.getSettings();
+      renderState(state);
     }
   });
 

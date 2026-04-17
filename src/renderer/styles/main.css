@@ -279,3 +279,30 @@ body {
 .group-edit-box {
   margin-top: 18px;
 }
+
+.vk-post-card textarea {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  resize: vertical;
+}
+
+.vk-post-card button {
+  background: #0060D0;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.vk-post-card button:hover {
+  opacity: 0.9;
+}
+
+#vkPostStatus {
+  margin-top: 10px;
+  font-size: 14px;
+}

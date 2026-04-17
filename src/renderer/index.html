@@ -25,6 +25,7 @@
           </button>
         </div>
       </div>
+
       <div id="vkAlert" class="alert alert--closable" hidden>
         <span id="vkAlertText"></span>
         <button id="vkAlertCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
@@ -56,6 +57,7 @@
               </button>
             </span>
           </div>
+
           <div class="summary-row">
             <span class="summary-label">Токен</span>
             <span class="summary-value summary-value--with-action">
@@ -78,12 +80,25 @@
             <button id="vkGroupCancelBtn" class="btn">Отмена</button>
           </div>
         </div>
-
-
       </div>
     </section>
-  </div>
 
+    <section class="vk-card vk-post-card">
+      <div class="vk-card__header">
+        <div class="vk-card__title">Отправить пост (VK)</div>
+      </div>
+
+      <div class="field">
+        <textarea id="vkPostText" placeholder="Введите текст поста..." rows="6"></textarea>
+      </div>
+
+      <div class="actions">
+        <button id="vkPostButton" class="btn btn--primary" type="button">Опубликовать</button>
+      </div>
+
+      <div id="vkPostStatus" class="post-status"></div>
+    </section>
+  </div>
 
   <script type="module" src="./renderer.js"></script>
 </body>
