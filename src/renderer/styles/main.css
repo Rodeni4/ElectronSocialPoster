@@ -260,6 +260,7 @@ body {
   border-color: #9fb3cc;
   background: #f7faff;
 }
+
 .vk-card__header-actions {
   display: flex;
   align-items: center;
@@ -289,13 +290,17 @@ body {
   resize: vertical;
 }
 
-.vk-post-card button {
+#vkPostButton {
   background: #0060D0;
   color: #fff;
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+#vkPostButton:hover {
+  opacity: 0.9;
 }
 
 .vk-post-card button:hover {
@@ -383,5 +388,15 @@ body {
 }
 
 .post-status a:hover {
+  text-decoration: none;
+}
+
+#vkPostStatus a {
+  color: inherit;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+#vkPostStatus a:hover {
   text-decoration: none;
 }

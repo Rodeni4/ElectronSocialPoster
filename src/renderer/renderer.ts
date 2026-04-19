@@ -209,6 +209,33 @@ document.addEventListener('DOMContentLoaded', () => {
     type: 'idle' | 'success' | 'error' | 'loading' = 'idle',
     allowHtml = false
   ): void {
+    if (!message) {
+      vkPostStatus!.innerHTML = '';
+      vkPostStatus!.className = 'post-status';
+      return;
+    }
+
+    if (type === 'success' || type === 'error') {
+      const content = allowHtml ? message : message;
+
+      vkPostStatus!.innerHTML = `
+      <span>${content}</span>
+      <button id="vkPostStatusCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
+    `;
+
+      vkPostStatus!.className =
+        type === 'success'
+          ? 'post-status alert alert--success alert--closable'
+          : 'post-status alert alert--error alert--closable';
+
+      const closeBtn = document.getElementById('vkPostStatusCloseBtn') as HTMLButtonElement | null;
+      closeBtn?.addEventListener('click', () => {
+        setPostStatus('', 'idle');
+      });
+
+      return;
+    }
+
     if (allowHtml) {
       vkPostStatus!.innerHTML = message;
     } else {
@@ -486,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
   vkPostButton!.addEventListener('click', async () => {
     try {
       hideAlert();
+      setPostStatus('', 'idle');
 
       const message = vkPostText!.value.trim();
 
