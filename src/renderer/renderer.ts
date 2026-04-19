@@ -94,6 +94,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const vkUserHeaderAvatar = document.getElementById('vkUserHeaderAvatar') as HTMLImageElement | null;
   const vkUserHeaderName = document.getElementById('vkUserHeaderName') as HTMLSpanElement | null;
 
+  const tabPostBtn = document.getElementById('tabPostBtn') as HTMLElement | null;
+  const tabAuthBtn = document.getElementById('tabAuthBtn') as HTMLElement | null;
+  const postTabPanel = document.getElementById('postTabPanel') as HTMLElement | null;
+  const authTabPanel = document.getElementById('authTabPanel') as HTMLElement | null;
+
+  function setActiveTab(tab: 'post' | 'auth') {
+    const isPost = tab === 'post';
+
+    tabPostBtn?.classList.toggle('is-active', isPost);
+    tabAuthBtn?.classList.toggle('is-active', !isPost);
+
+    postTabPanel?.classList.toggle('active', isPost);
+    authTabPanel?.classList.toggle('active', !isPost);
+  }
+
+  tabPostBtn?.addEventListener('click', () => {
+    setActiveTab('post');
+  });
+
+  tabAuthBtn?.addEventListener('click', () => {
+    setActiveTab('auth');
+  });
+
+  setActiveTab('post');
+
   const requiredElements = [
     vkStatusBadge,
     vkAlert,
@@ -133,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     vkUserHeaderAvatar,
     vkUserHeaderName
   ];
+
 
   if (requiredElements.some((el) => !el)) {
     console.error('Не найдены обязательные элементы интерфейса VK.');
@@ -178,8 +204,17 @@ document.addEventListener('DOMContentLoaded', () => {
     vkUserStatusBadge!.className = `status-badge status-badge--${mode}`;
   }
 
-  function setPostStatus(message: string, type: 'idle' | 'success' | 'error' | 'loading' = 'idle'): void {
-    vkPostStatus!.textContent = message;
+  function setPostStatus(
+    message: string,
+    type: 'idle' | 'success' | 'error' | 'loading' = 'idle',
+    allowHtml = false
+  ): void {
+    if (allowHtml) {
+      vkPostStatus!.innerHTML = message;
+    } else {
+      vkPostStatus!.textContent = message;
+    }
+
     vkPostStatus!.className = `post-status post-status--${type}`;
   }
 
@@ -243,53 +278,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-function renderUserState(state: VkUserRendererState): void {
-  if (state.userConnected) {
-    setUserBadge('Подключено', 'on');
+  function renderUserState(state: VkUserRendererState): void {
+    if (state.userConnected) {
+      setUserBadge('Подключено', 'on');
 
-    vkUserSetupView!.hidden = true;
-    vkUserConnectedView!.hidden = false;
-    vkUserDisconnectBtn!.hidden = false;
+      vkUserSetupView!.hidden = true;
+      vkUserConnectedView!.hidden = false;
+      vkUserDisconnectBtn!.hidden = false;
 
-    vkUserTokenInput!.value = '';
+      vkUserTokenInput!.value = '';
 
-    // В header показываем имя пользователя
-    vkUserHeaderName!.textContent = state.userName || '';
+      // В header показываем имя пользователя
+      vkUserHeaderName!.textContent = state.userName || '';
 
-    // В summary строке "Пользователь" показываем @screen_name
-    if (state.userScreenName) {
-      vkUserNameText!.textContent = `@${state.userScreenName}`;
-    } else if (state.userId) {
-      vkUserNameText!.textContent = `id${state.userId}`;
+      // В summary строке "Пользователь" показываем @screen_name
+      if (state.userScreenName) {
+        vkUserNameText!.textContent = `@${state.userScreenName}`;
+      } else if (state.userId) {
+        vkUserNameText!.textContent = `id${state.userId}`;
+      } else {
+        vkUserNameText!.textContent = '—';
+      }
+
+      vkUserTokenText!.textContent = state.userTokenMasked || 'Скрыт';
+
+      if (state.userAvatar) {
+        vkUserHeaderAvatar!.src = state.userAvatar;
+        vkUserHeaderAvatar!.hidden = false;
+      } else {
+        vkUserHeaderAvatar!.src = '';
+        vkUserHeaderAvatar!.hidden = true;
+      }
     } else {
-      vkUserNameText!.textContent = '—';
-    }
+      setUserBadge('Не подключено', 'off');
 
-    vkUserTokenText!.textContent = state.userTokenMasked || 'Скрыт';
-
-    if (state.userAvatar) {
-      vkUserHeaderAvatar!.src = state.userAvatar;
-      vkUserHeaderAvatar!.hidden = false;
-    } else {
       vkUserHeaderAvatar!.src = '';
       vkUserHeaderAvatar!.hidden = true;
+      vkUserHeaderName!.textContent = '';
+
+      vkUserSetupView!.hidden = false;
+      vkUserConnectedView!.hidden = true;
+      vkUserDisconnectBtn!.hidden = true;
+
+      vkUserTokenInput!.value = '';
+      vkUserNameText!.textContent = '—';
+      vkUserTokenText!.textContent = '';
     }
-  } else {
-    setUserBadge('Не подключено', 'off');
-
-    vkUserHeaderAvatar!.src = '';
-    vkUserHeaderAvatar!.hidden = true;
-    vkUserHeaderName!.textContent = '';
-
-    vkUserSetupView!.hidden = false;
-    vkUserConnectedView!.hidden = true;
-    vkUserDisconnectBtn!.hidden = true;
-
-    vkUserTokenInput!.value = '';
-    vkUserNameText!.textContent = '—';
-    vkUserTokenText!.textContent = '';
   }
-}
 
   function setLoadingState(isLoading: boolean): void {
     vkSaveBtn!.disabled = isLoading;
@@ -468,7 +503,11 @@ function renderUserState(state: VkUserRendererState): void {
         vkPostText!.value = '';
 
         if (result.postUrl) {
-          setPostStatus(`Пост опубликован: ${result.postUrl}`, 'success');
+          setPostStatus(
+            `Пост опубликован: <a href="${result.postUrl}" target="_blank" rel="noopener noreferrer">${result.postUrl}</a>`,
+            'success',
+            true
+          );
         } else {
           setPostStatus('Пост опубликован.', 'success');
         }

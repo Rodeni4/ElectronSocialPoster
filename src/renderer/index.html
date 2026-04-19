@@ -12,154 +12,164 @@
 
 <body>
   <div class="app-shell">
-    <section class="vk-card">
-
-      <div class="vk-card__header">
-        <div class="vk-card__title vk-user-header">
-          <img id="vkGroupHeaderAvatar" class="vk-user-header__avatar" src="" alt="Аватар VK Group" hidden />
-          <span>VK Group</span>
-          <span id="vkGroupHeaderName" class="vk-user-header__name"></span>
-        </div>
-
-        <div class="vk-card__header-actions">
-          <div id="vkStatusBadge" class="status-badge status-badge--off">Не подключено</div>
-
-          <button id="vkDisconnectBtn" class="icon-action-btn icon-action-btn--danger" type="button"
-            title="Отключить VK Group" aria-label="Отключить VK Group" hidden>
-            ×
-          </button>
-        </div>
+    <div class="tabs">
+      <div class="tabs__nav">
+        <div id="tabPostBtn" class="tabs__item is-active">Пост</div>
+        <div id="tabAuthBtn" class="tabs__item">Авторизация</div>
       </div>
+    </div>
 
-      <div id="vkAlert" class="alert alert--closable" hidden>
-        <span id="vkAlertText"></span>
-        <button id="vkAlertCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
-      </div>
-
-      <div id="vkSetupView">
-        <div class="field">
-          <input id="vkTokenInput" type="password" placeholder="Токен сообщества VK" autocomplete="off" />
+    <section id="postTabPanel" class="tab-panel active">
+      <section class="vk-card vk-post-card">
+        <div class="vk-card__header">
+          <div class="vk-card__title">Отправить пост (VK)</div>
         </div>
 
         <div class="field">
-          <input id="vkGroupInput" type="text" placeholder="ID группы или short name" autocomplete="off" />
+          <textarea id="vkPostText" placeholder="Введите текст поста..." rows="6"></textarea>
         </div>
 
         <div class="actions">
-          <button id="vkSaveBtn" class="btn btn--primary">Сохранить</button>
+          <button id="vkPostButton" class="btn btn--primary" type="button">Опубликовать</button>
         </div>
-      </div>
 
-      <div id="vkConnectedView" hidden>
-        <div class="summary">
-          <div class="summary-row">
-            <span class="summary-label">Группа</span>
-            <span class="summary-value summary-value--with-action">
-              <span id="vkGroupText"></span>
-              <button id="vkChangeGroupBtn" class="icon-action-btn" type="button" title="Изменить группу"
-                aria-label="Изменить группу">
-                ×
-              </button>
-            </span>
+        <div id="vkPostStatus" class="post-status"></div>
+      </section>
+    </section>
+
+    <section id="authTabPanel" class="tab-panel">
+      <section class="vk-card">
+        <div class="vk-card__header">
+          <div class="vk-card__title vk-user-header">
+            <img id="vkGroupHeaderAvatar" class="vk-user-header__avatar" src="" alt="Аватар VK Group" hidden />
+            <span>VK Group</span>
+            <span id="vkGroupHeaderName" class="vk-user-header__name"></span>
           </div>
 
-          <div class="summary-row">
-            <span class="summary-label">Токен</span>
-            <span class="summary-value summary-value--with-action">
-              <span id="vkTokenText"></span>
-              <button id="vkChangeTokenBtn" class="icon-action-btn" type="button" title="Сменить токен"
-                aria-label="Сменить токен">
-                ×
-              </button>
-            </span>
+          <div class="vk-card__header-actions">
+            <div id="vkStatusBadge" class="status-badge status-badge--off">Не подключено</div>
+
+            <button id="vkDisconnectBtn" class="icon-action-btn icon-action-btn--danger" type="button"
+              title="Отключить VK Group" aria-label="Отключить VK Group" hidden>
+              ×
+            </button>
           </div>
         </div>
 
-        <div id="vkGroupEditBox" class="group-edit-box" hidden>
+        <div id="vkAlert" class="alert alert--closable" hidden>
+          <span id="vkAlertText"></span>
+          <button id="vkAlertCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
+        </div>
+
+        <div id="vkSetupView">
           <div class="field">
-            <input id="vkGroupEditInput" type="text" placeholder="ID группы или short name" autocomplete="off" />
+            <input id="vkTokenInput" type="password" placeholder="Токен сообщества VK" autocomplete="off" />
           </div>
 
-          <div class="actions actions--multi">
-            <button id="vkGroupSaveBtn" class="btn btn--primary">Сохранить группу</button>
-            <button id="vkGroupCancelBtn" class="btn">Отмена</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="vk-card">
-      <div class="vk-card__header">
-        <div class="vk-card__title vk-user-header">
-          <img id="vkUserHeaderAvatar" class="vk-user-header__avatar" src="" alt="Аватар VK User" hidden />
-          <span>VK User</span>
-          <span id="vkUserHeaderName" class="vk-user-header__name"></span>
-        </div>
-
-        <div class="vk-card__header-actions">
-          <div id="vkUserStatusBadge" class="status-badge status-badge--off">Не подключено</div>
-
-          <button id="vkUserDisconnectBtn" class="icon-action-btn icon-action-btn--danger" type="button"
-            title="Отключить VK User" aria-label="Отключить VK User" hidden>
-            ×
-          </button>
-        </div>
-      </div>
-
-      <div id="vkUserAlert" class="alert alert--closable" hidden>
-        <span id="vkUserAlertText"></span>
-        <button id="vkUserAlertCloseBtn" class="alert-close-btn" type="button"
-          aria-label="Закрыть уведомление">×</button>
-      </div>
-
-      <div id="vkUserSetupView">
-        <div class="field">
-          <input id="vkUserTokenInput" type="password" placeholder="Токен пользователя VK" autocomplete="off" />
-        </div>
-
-        <div class="actions">
-          <button id="vkUserSaveBtn" class="btn btn--primary">Сохранить</button>
-        </div>
-      </div>
-
-      <div id="vkUserConnectedView" hidden>
-        <div class="summary">
-          <div class="summary-row">
-            <span class="summary-label">Пользователь</span>
-            <span class="summary-value">
-              <span id="vkUserNameText">—</span>
-            </span>
+          <div class="field">
+            <input id="vkGroupInput" type="text" placeholder="ID группы или short name" autocomplete="off" />
           </div>
 
-          <div class="summary-row">
-            <span class="summary-label">Токен</span>
-            <span class="summary-value summary-value--with-action">
-              <span id="vkUserTokenText"></span>
-              <button id="vkUserChangeTokenBtn" class="icon-action-btn" type="button" title="Сменить токен"
-                aria-label="Сменить токен">
-                ×
-              </button>
-            </span>
+          <div class="actions">
+            <button id="vkSaveBtn" class="btn btn--primary">Сохранить</button>
+          </div>
+        </div>
+
+        <div id="vkConnectedView" hidden>
+          <div class="summary">
+            <div class="summary-row">
+              <span class="summary-label">Группа</span>
+              <span class="summary-value summary-value--with-action">
+                <span id="vkGroupText"></span>
+                <button id="vkChangeGroupBtn" class="icon-action-btn" type="button" title="Изменить группу"
+                  aria-label="Изменить группу">
+                  ×
+                </button>
+              </span>
+            </div>
+
+            <div class="summary-row">
+              <span class="summary-label">Токен</span>
+              <span class="summary-value summary-value--with-action">
+                <span id="vkTokenText"></span>
+                <button id="vkChangeTokenBtn" class="icon-action-btn" type="button" title="Сменить токен"
+                  aria-label="Сменить токен">
+                  ×
+                </button>
+              </span>
+            </div>
           </div>
 
+          <div id="vkGroupEditBox" class="group-edit-box" hidden>
+            <div class="field">
+              <input id="vkGroupEditInput" type="text" placeholder="ID группы или short name" autocomplete="off" />
+            </div>
+
+            <div class="actions actions--multi">
+              <button id="vkGroupSaveBtn" class="btn btn--primary">Сохранить группу</button>
+              <button id="vkGroupCancelBtn" class="btn">Отмена</button>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="vk-card vk-post-card">
-      <div class="vk-card__header">
-        <div class="vk-card__title">Отправить пост (VK)</div>
-      </div>
+      <section class="vk-card">
+        <div class="vk-card__header">
+          <div class="vk-card__title vk-user-header">
+            <img id="vkUserHeaderAvatar" class="vk-user-header__avatar" src="" alt="Аватар VK User" hidden />
+            <span>VK User</span>
+            <span id="vkUserHeaderName" class="vk-user-header__name"></span>
+          </div>
 
-      <div class="field">
-        <textarea id="vkPostText" placeholder="Введите текст поста..." rows="6"></textarea>
-      </div>
+          <div class="vk-card__header-actions">
+            <div id="vkUserStatusBadge" class="status-badge status-badge--off">Не подключено</div>
 
-      <div class="actions">
-        <button id="vkPostButton" class="btn btn--primary" type="button">Опубликовать</button>
-      </div>
+            <button id="vkUserDisconnectBtn" class="icon-action-btn icon-action-btn--danger" type="button"
+              title="Отключить VK User" aria-label="Отключить VK User" hidden>
+              ×
+            </button>
+          </div>
+        </div>
 
-      <div id="vkPostStatus" class="post-status"></div>
+        <div id="vkUserAlert" class="alert alert--closable" hidden>
+          <span id="vkUserAlertText"></span>
+          <button id="vkUserAlertCloseBtn" class="alert-close-btn" type="button"
+            aria-label="Закрыть уведомление">×</button>
+        </div>
+
+        <div id="vkUserSetupView">
+          <div class="field">
+            <input id="vkUserTokenInput" type="password" placeholder="Токен пользователя VK" autocomplete="off" />
+          </div>
+
+          <div class="actions">
+            <button id="vkUserSaveBtn" class="btn btn--primary">Сохранить</button>
+          </div>
+        </div>
+
+        <div id="vkUserConnectedView" hidden>
+          <div class="summary">
+            <div class="summary-row">
+              <span class="summary-label">Пользователь</span>
+              <span class="summary-value">
+                <span id="vkUserNameText">—</span>
+              </span>
+            </div>
+
+            <div class="summary-row">
+              <span class="summary-label">Токен</span>
+              <span class="summary-value summary-value--with-action">
+                <span id="vkUserTokenText"></span>
+                <button id="vkUserChangeTokenBtn" class="icon-action-btn" type="button" title="Сменить токен"
+                  aria-label="Сменить токен">
+                  ×
+                </button>
+              </span>
+            </div>
+
+          </div>
+        </div>
+      </section>
     </section>
   </div>
 
