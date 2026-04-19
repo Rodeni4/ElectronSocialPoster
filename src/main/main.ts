@@ -8,13 +8,26 @@ type VkConfig = {
   groupValue: string | null;
   groupId: number | null;
   groupName: string | null;
+  groupAvatar: string | null;
   isConnected: boolean;
+
   userTokenEncrypted: string | null;
   userId: number | null;
   userName: string | null;
   userAvatar: string | null;
   userScreenName: string | null;
   userConnected: boolean;
+};
+
+type VkRendererState = {
+  tokenSaved: boolean;
+  tokenMasked: string;
+  groupValue: string;
+  groupId: number | null;
+  groupName: string;
+  groupAvatar: string;
+  isConnected: boolean;
+  encryptionAvailable: boolean;
 };
 
 type VkUserRendererState = {
@@ -25,16 +38,6 @@ type VkUserRendererState = {
   userAvatar: string;
   userScreenName: string;
   userConnected: boolean;
-};
-
-type VkRendererState = {
-  tokenSaved: boolean;
-  tokenMasked: string;
-  groupValue: string;
-  groupId: number | null;
-  groupName: string;
-  isConnected: boolean;
-  encryptionAvailable: boolean;
 };
 
 type VkPublishResult = {
@@ -57,7 +60,9 @@ function defaultConfig(): VkConfig {
     groupValue: null,
     groupId: null,
     groupName: null,
+    groupAvatar: null,
     isConnected: false,
+
     userTokenEncrypted: null,
     userId: null,
     userName: null,
@@ -99,7 +104,9 @@ function readConfig(): VkConfig {
       groupValue: parsed.groupValue ?? null,
       groupId: parsed.groupId ?? null,
       groupName: parsed.groupName ?? null,
+      groupAvatar: parsed.groupAvatar ?? null,
       isConnected: parsed.isConnected ?? false,
+
       userTokenEncrypted: parsed.userTokenEncrypted ?? null,
       userId: parsed.userId ?? null,
       userName: parsed.userName ?? null,
@@ -148,8 +155,37 @@ function getRendererState(): VkRendererState {
     groupValue: config.groupValue ?? '',
     groupId: config.groupId ?? null,
     groupName: config.groupName ?? '',
+    groupAvatar: config.groupAvatar ?? '',
     isConnected: config.isConnected,
     encryptionAvailable: safeStorage.isEncryptionAvailable()
+  };
+}
+
+function getUserRendererState(): VkUserRendererState {
+  const config = readConfig();
+
+  let userTokenMasked = '';
+  let userTokenSaved = false;
+
+  if (config.userTokenEncrypted) {
+    try {
+      const token = decryptToken(config.userTokenEncrypted);
+      userTokenMasked = maskToken(token);
+      userTokenSaved = true;
+    } catch {
+      userTokenMasked = 'Токен сохранён';
+      userTokenSaved = true;
+    }
+  }
+
+  return {
+    userTokenSaved,
+    userTokenMasked,
+    userId: config.userId ?? null,
+    userName: config.userName ?? '',
+    userAvatar: config.userAvatar ?? '',
+    userScreenName: config.userScreenName ?? '',
+    userConnected: config.userConnected ?? false
   };
 }
 
@@ -199,7 +235,98 @@ function vkApiRequest<T>(method: string, params: Record<string, string>): Promis
   });
 }
 
-function saveVkSettings(token: string, groupValue: string): VkRendererState {
+function getPreferredTokenForGroupPreview(config: VkConfig): { token: string | null; source: 'user' | 'group' | 'none' } {
+  if (config.tokenEncrypted) {
+    try {
+      return {
+        token: decryptToken(config.tokenEncrypted),
+        source: 'group'
+      };
+    } catch {
+      // ignore
+    }
+  }
+
+  if (config.userTokenEncrypted) {
+    try {
+      return {
+        token: decryptToken(config.userTokenEncrypted),
+        source: 'user'
+      };
+    } catch {
+      // ignore
+    }
+  }
+
+  return {
+    token: null,
+    source: 'none'
+  };
+}
+
+async function fetchGroupPreview(config: VkConfig, groupValue: string): Promise<{
+  id: number | null;
+  name: string;
+  avatar: string;
+}> {
+  const normalizedGroup = groupValue.trim();
+
+  if (!normalizedGroup) {
+    return {
+      id: null,
+      name: '',
+      avatar: ''
+    };
+  }
+
+  const preferred = getPreferredTokenForGroupPreview(config);
+
+  const requestParams: Record<string, string> = {
+    group_id: normalizedGroup,
+    fields: 'photo_50,photo_100,photo_200'
+  };
+
+  if (preferred.token) {
+    requestParams.access_token = preferred.token;
+  }
+
+  try {
+    const response = await vkApiRequest<{
+      groups?: Array<{
+        id: number;
+        name: string;
+        photo_50?: string;
+        photo_100?: string;
+        photo_200?: string;
+      }>;
+      profiles?: unknown[];
+    }>('groups.getById', requestParams);
+
+    const group = response.groups?.[0];
+
+    if (!group) {
+      return {
+        id: null,
+        name: normalizedGroup,
+        avatar: ''
+      };
+    }
+
+    return {
+      id: group.id ?? null,
+      name: group.name || normalizedGroup,
+      avatar: group.photo_200 || group.photo_100 || group.photo_50 || ''
+    };
+  } catch {
+    return {
+      id: null,
+      name: normalizedGroup,
+      avatar: ''
+    };
+  }
+}
+
+async function saveVkSettings(token: string, groupValue: string): Promise<VkRendererState> {
   const normalizedToken = token.trim();
   const normalizedGroup = groupValue.trim();
 
@@ -211,27 +338,45 @@ function saveVkSettings(token: string, groupValue: string): VkRendererState {
     throw new Error('Введите id группы или short name.');
   }
 
+  const previousConfig = readConfig();
+
   const config: VkConfig = {
     tokenEncrypted: encryptToken(normalizedToken),
     groupValue: normalizedGroup,
     groupId: null,
-    groupName: null,
+    groupName: normalizedGroup,
+    groupAvatar: '',
     isConnected: true,
 
-    userTokenEncrypted: null,
-    userId: null,
-    userName: null,
-    userAvatar: null,
-    userScreenName: null,
-    userConnected: false
+    userTokenEncrypted: previousConfig.userTokenEncrypted,
+    userId: previousConfig.userId,
+    userName: previousConfig.userName,
+    userAvatar: previousConfig.userAvatar,
+    userScreenName: previousConfig.userScreenName,
+    userConnected: previousConfig.userConnected
   };
+
+  const preview = await fetchGroupPreview(config, normalizedGroup);
+
+  console.log('groupPreview parsed:', JSON.stringify(preview, null, 2));
+
+  config.groupId = preview.id;
+  config.groupName = preview.name || normalizedGroup;
+  config.groupAvatar = preview.avatar || '';
+
+  console.log('config before write:', JSON.stringify({
+    groupId: config.groupId,
+    groupName: config.groupName,
+    groupAvatar: config.groupAvatar,
+    groupValue: config.groupValue
+  }, null, 2));
 
   writeConfig(config);
 
   return getRendererState();
 }
 
-function updateGroup(groupValue: string): VkRendererState {
+async function updateGroup(groupValue: string): Promise<VkRendererState> {
   const normalizedGroup = groupValue.trim();
 
   if (!normalizedGroup) {
@@ -242,8 +387,24 @@ function updateGroup(groupValue: string): VkRendererState {
 
   config.groupValue = normalizedGroup;
   config.groupId = null;
-  config.groupName = null;
+  config.groupName = normalizedGroup;
+  config.groupAvatar = '';
   config.isConnected = Boolean(config.tokenEncrypted && normalizedGroup);
+
+  const preview = await fetchGroupPreview(config, normalizedGroup);
+
+  console.log('groupPreview parsed:', JSON.stringify(preview, null, 2));
+
+  config.groupId = preview.id;
+  config.groupName = preview.name || normalizedGroup;
+  config.groupAvatar = preview.avatar || '';
+
+  console.log('config before write:', JSON.stringify({
+    groupId: config.groupId,
+    groupName: config.groupName,
+    groupAvatar: config.groupAvatar,
+    groupValue: config.groupValue
+  }, null, 2));
 
   writeConfig(config);
 
@@ -251,7 +412,17 @@ function updateGroup(groupValue: string): VkRendererState {
 }
 
 function clearVkSettings(): VkRendererState {
-  writeConfig(defaultConfig());
+  const config = readConfig();
+
+  config.tokenEncrypted = null;
+  config.groupValue = null;
+  config.groupId = null;
+  config.groupName = null;
+  config.groupAvatar = null;
+  config.isConnected = false;
+
+  writeConfig(config);
+
   return getRendererState();
 }
 
@@ -325,52 +496,6 @@ async function publishVkPost(message: string): Promise<VkPublishResult> {
   };
 }
 
-function createWindow(): void {
-  const win = new BrowserWindow({
-    width: 980,
-    height: 720,
-    minWidth: 820,
-    minHeight: 620,
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-
-  win.loadFile(path.join(__dirname, '../renderer/index.html'));
-}
-
-
-function getUserRendererState(): VkUserRendererState {
-  const config = readConfig();
-
-  let userTokenMasked = '';
-  let userTokenSaved = false;
-
-  if (config.userTokenEncrypted) {
-    try {
-      const token = decryptToken(config.userTokenEncrypted);
-      userTokenMasked = maskToken(token);
-      userTokenSaved = true;
-    } catch {
-      userTokenMasked = 'Токен сохранён';
-      userTokenSaved = true;
-    }
-  }
-
-  return {
-    userTokenSaved,
-    userTokenMasked,
-    userId: config.userId ?? null,
-    userName: config.userName ?? '',
-    userAvatar: config.userAvatar ?? '',
-    userScreenName: config.userScreenName ?? '',
-    userConnected: config.userConnected ?? false
-  };
-}
-
-
 async function saveUserSettings(token: string): Promise<VkUserRendererState> {
   const normalizedToken = token.trim();
 
@@ -424,20 +549,32 @@ function clearUserSettings(): VkUserRendererState {
   return getUserRendererState();
 }
 
+function createWindow(): void {
+  const win = new BrowserWindow({
+    width: 980,
+    height: 720,
+    minWidth: 820,
+    minHeight: 620,
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
 
-
-
+  win.loadFile(path.join(__dirname, '../renderer/index.html'));
+}
 
 app.whenReady().then(() => {
   ipcMain.handle('vk:get-settings', () => {
     return getRendererState();
   });
 
-  ipcMain.handle('vk:save-settings', (_event, payload: { token: string; groupValue: string }) => {
+  ipcMain.handle('vk:save-settings', async (_event, payload: { token: string; groupValue: string }) => {
     return saveVkSettings(payload.token, payload.groupValue);
   });
 
-  ipcMain.handle('vk:update-group', (_event, payload: { groupValue: string }) => {
+  ipcMain.handle('vk:update-group', async (_event, payload: { groupValue: string }) => {
     return updateGroup(payload.groupValue);
   });
 
@@ -453,7 +590,7 @@ app.whenReady().then(() => {
     return getUserRendererState();
   });
 
-  ipcMain.handle('vk-user:save-settings', (_event, payload: { token: string }) => {
+  ipcMain.handle('vk-user:save-settings', async (_event, payload: { token: string }) => {
     return saveUserSettings(payload.token);
   });
 

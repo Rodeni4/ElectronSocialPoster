@@ -6,6 +6,7 @@ type VkRendererState = {
   groupValue: string;
   groupId: number | null;
   groupName: string;
+  groupAvatar: string;
   isConnected: boolean;
   encryptionAvailable: boolean;
 };

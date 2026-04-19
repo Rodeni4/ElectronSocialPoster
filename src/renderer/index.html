@@ -13,8 +13,13 @@
 <body>
   <div class="app-shell">
     <section class="vk-card">
+
       <div class="vk-card__header">
-        <div class="vk-card__title">VK Group</div>
+        <div class="vk-card__title vk-user-header">
+          <img id="vkGroupHeaderAvatar" class="vk-user-header__avatar" src="" alt="Аватар VK Group" hidden />
+          <span>VK Group</span>
+          <span id="vkGroupHeaderName" class="vk-user-header__name"></span>
+        </div>
 
         <div class="vk-card__header-actions">
           <div id="vkStatusBadge" class="status-badge status-badge--off">Не подключено</div>
@@ -57,6 +62,7 @@
               </button>
             </span>
           </div>
+
           <div class="summary-row">
             <span class="summary-label">Токен</span>
             <span class="summary-value summary-value--with-action">
@@ -84,7 +90,11 @@
 
     <section class="vk-card">
       <div class="vk-card__header">
-        <div class="vk-card__title">VK User</div>
+        <div class="vk-card__title vk-user-header">
+          <img id="vkUserHeaderAvatar" class="vk-user-header__avatar" src="" alt="Аватар VK User" hidden />
+          <span>VK User</span>
+          <span id="vkUserHeaderName" class="vk-user-header__name"></span>
+        </div>
 
         <div class="vk-card__header-actions">
           <div id="vkUserStatusBadge" class="status-badge status-badge--off">Не подключено</div>
@@ -131,16 +141,7 @@
               </button>
             </span>
           </div>
-        </div>
 
-        <div class="vk-user-profile">
-          <div class="vk-user-profile__avatar-wrap">
-            <img id="vkUserAvatar" class="vk-user-profile__avatar" src="" alt="Аватар пользователя VK" hidden />
-          </div>
-
-          <div class="vk-user-profile__meta">
-            <div id="vkUserScreenName" class="vk-user-profile__screen-name"></div>
-          </div>
         </div>
       </div>
     </section>

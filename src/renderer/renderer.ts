@@ -22,6 +22,7 @@ type VkRendererState = {
   groupValue: string;
   groupId: number | null;
   groupName: string;
+  groupAvatar: string;
   isConnected: boolean;
   encryptionAvailable: boolean;
 };
@@ -67,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const vkGroupSaveBtn = document.getElementById('vkGroupSaveBtn') as HTMLButtonElement | null;
   const vkGroupCancelBtn = document.getElementById('vkGroupCancelBtn') as HTMLButtonElement | null;
 
+  const vkGroupHeaderAvatar = document.getElementById('vkGroupHeaderAvatar') as HTMLImageElement | null;
+  const vkGroupHeaderName = document.getElementById('vkGroupHeaderName') as HTMLSpanElement | null;
+
   const vkPostText = document.getElementById('vkPostText') as HTMLTextAreaElement | null;
   const vkPostButton = document.getElementById('vkPostButton') as HTMLButtonElement | null;
   const vkPostStatus = document.getElementById('vkPostStatus') as HTMLDivElement | null;
@@ -86,8 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const vkUserNameText = document.getElementById('vkUserNameText') as HTMLSpanElement | null;
   const vkUserTokenText = document.getElementById('vkUserTokenText') as HTMLSpanElement | null;
-  const vkUserAvatar = document.getElementById('vkUserAvatar') as HTMLImageElement | null;
-  const vkUserScreenName = document.getElementById('vkUserScreenName') as HTMLDivElement | null;
+
+  const vkUserHeaderAvatar = document.getElementById('vkUserHeaderAvatar') as HTMLImageElement | null;
+  const vkUserHeaderName = document.getElementById('vkUserHeaderName') as HTMLSpanElement | null;
 
   const requiredElements = [
     vkStatusBadge,
@@ -108,10 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
     vkGroupEditInput,
     vkGroupSaveBtn,
     vkGroupCancelBtn,
+    vkGroupHeaderAvatar,
+    vkGroupHeaderName,
     vkPostText,
     vkPostButton,
     vkPostStatus,
-
     vkUserStatusBadge,
     vkUserAlert,
     vkUserAlertText,
@@ -124,8 +130,8 @@ document.addEventListener('DOMContentLoaded', () => {
     vkUserChangeTokenBtn,
     vkUserNameText,
     vkUserTokenText,
-    vkUserAvatar,
-    vkUserScreenName
+    vkUserHeaderAvatar,
+    vkUserHeaderName
   ];
 
   if (requiredElements.some((el) => !el)) {
@@ -185,13 +191,30 @@ document.addEventListener('DOMContentLoaded', () => {
       vkConnectedView!.hidden = false;
       vkDisconnectBtn!.hidden = false;
 
-      vkGroupText!.textContent = state.groupName || state.groupValue || '—';
+      // В строке "Группа" показываем исходное введённое значение
+      vkGroupText!.textContent = state.groupValue || state.groupName || '—';
+
+      // В header показываем красивое имя группы
+      vkGroupHeaderName!.textContent = state.groupName || '';
+
+      // Токен
       vkTokenText!.textContent = state.tokenMasked || 'Скрыт';
+
+      // Редактирование
       vkGroupEditBox!.hidden = true;
       vkGroupEditInput!.value = state.groupValue || '';
 
       vkGroupInput!.value = state.groupValue || '';
       vkTokenInput!.value = '';
+
+      // Аватарка группы
+      if (state.groupAvatar) {
+        vkGroupHeaderAvatar!.src = state.groupAvatar;
+        vkGroupHeaderAvatar!.hidden = false;
+      } else {
+        vkGroupHeaderAvatar!.src = '';
+        vkGroupHeaderAvatar!.hidden = true;
+      }
 
       vkPostButton!.disabled = false;
       vkPostText!.disabled = false;
@@ -209,54 +232,64 @@ document.addEventListener('DOMContentLoaded', () => {
       vkGroupInput!.value = state.groupValue || '';
       vkTokenInput!.value = '';
 
+      vkGroupText!.textContent = '';
+      vkGroupHeaderName!.textContent = '';
+      vkGroupHeaderAvatar!.src = '';
+      vkGroupHeaderAvatar!.hidden = true;
+
       vkPostButton!.disabled = true;
       vkPostText!.disabled = true;
       setPostStatus('Сначала подключите VK Group.', 'idle');
     }
   }
 
-  function renderUserState(state: VkUserRendererState): void {
-    if (state.userConnected) {
-      setUserBadge('Подключено', 'on');
+function renderUserState(state: VkUserRendererState): void {
+  if (state.userConnected) {
+    setUserBadge('Подключено', 'on');
 
-      vkUserSetupView!.hidden = true;
-      vkUserConnectedView!.hidden = false;
-      vkUserDisconnectBtn!.hidden = false;
+    vkUserSetupView!.hidden = true;
+    vkUserConnectedView!.hidden = false;
+    vkUserDisconnectBtn!.hidden = false;
 
-      vkUserTokenInput!.value = '';
-      vkUserNameText!.textContent = state.userName || '—';
-      vkUserTokenText!.textContent = state.userTokenMasked || 'Скрыт';
+    vkUserTokenInput!.value = '';
 
-      if (state.userAvatar) {
-        vkUserAvatar!.src = state.userAvatar;
-        vkUserAvatar!.hidden = false;
-      } else {
-        vkUserAvatar!.src = '';
-        vkUserAvatar!.hidden = true;
-      }
+    // В header показываем имя пользователя
+    vkUserHeaderName!.textContent = state.userName || '';
 
-      if (state.userScreenName) {
-        vkUserScreenName!.textContent = `@${state.userScreenName}`;
-      } else if (state.userId) {
-        vkUserScreenName!.textContent = `id${state.userId}`;
-      } else {
-        vkUserScreenName!.textContent = '';
-      }
+    // В summary строке "Пользователь" показываем @screen_name
+    if (state.userScreenName) {
+      vkUserNameText!.textContent = `@${state.userScreenName}`;
+    } else if (state.userId) {
+      vkUserNameText!.textContent = `id${state.userId}`;
     } else {
-      setUserBadge('Не подключено', 'off');
-
-      vkUserSetupView!.hidden = false;
-      vkUserConnectedView!.hidden = true;
-      vkUserDisconnectBtn!.hidden = true;
-
-      vkUserTokenInput!.value = '';
       vkUserNameText!.textContent = '—';
-      vkUserTokenText!.textContent = '';
-      vkUserScreenName!.textContent = '';
-      vkUserAvatar!.src = '';
-      vkUserAvatar!.hidden = true;
     }
+
+    vkUserTokenText!.textContent = state.userTokenMasked || 'Скрыт';
+
+    if (state.userAvatar) {
+      vkUserHeaderAvatar!.src = state.userAvatar;
+      vkUserHeaderAvatar!.hidden = false;
+    } else {
+      vkUserHeaderAvatar!.src = '';
+      vkUserHeaderAvatar!.hidden = true;
+    }
+  } else {
+    setUserBadge('Не подключено', 'off');
+
+    vkUserHeaderAvatar!.src = '';
+    vkUserHeaderAvatar!.hidden = true;
+    vkUserHeaderName!.textContent = '';
+
+    vkUserSetupView!.hidden = false;
+    vkUserConnectedView!.hidden = true;
+    vkUserDisconnectBtn!.hidden = true;
+
+    vkUserTokenInput!.value = '';
+    vkUserNameText!.textContent = '—';
+    vkUserTokenText!.textContent = '';
   }
+}
 
   function setLoadingState(isLoading: boolean): void {
     vkSaveBtn!.disabled = isLoading;
@@ -290,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       hideAlert();
       const state = await window.vkAPI!.getSettings();
+      console.log('VK GROUP STATE:', state);
       renderState(state);
     } catch (error) {
       setBadge('Ошибка', 'error');
