@@ -21,6 +21,12 @@ type VkUserRendererState = {
   userConnected: boolean;
 };
 
+type VkImagePayload = {
+  name: string;
+  type: string;
+  dataBase64: string;
+};
+
 type VkPublishResult = {
   success: boolean;
   error?: string;
@@ -49,5 +55,11 @@ contextBridge.exposeInMainWorld('vkAPI', {
     ipcRenderer.invoke('vk-user:save-settings', payload),
 
   disconnectUser: (): Promise<VkUserRendererState> =>
-    ipcRenderer.invoke('vk-user:disconnect')
+    ipcRenderer.invoke('vk-user:disconnect'),
+
+  publishPostByUserToken: (payload: {
+    message: string;
+    images?: VkImagePayload[];
+  }): Promise<VkPublishResult> =>
+    ipcRenderer.invoke('vk-user:publish-post', payload)
 });

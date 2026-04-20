@@ -40,6 +40,12 @@ type VkUserRendererState = {
   userConnected: boolean;
 };
 
+type VkImagePayload = {
+  name: string;
+  type: string;
+  dataBase64: string;
+};
+
 type VkPublishResult = {
   success: boolean;
   error?: string;
@@ -364,12 +370,19 @@ async function saveVkSettings(token: string, groupValue: string): Promise<VkRend
   config.groupName = preview.name || normalizedGroup;
   config.groupAvatar = preview.avatar || '';
 
-  console.log('config before write:', JSON.stringify({
-    groupId: config.groupId,
-    groupName: config.groupName,
-    groupAvatar: config.groupAvatar,
-    groupValue: config.groupValue
-  }, null, 2));
+  console.log(
+    'config before write:',
+    JSON.stringify(
+      {
+        groupId: config.groupId,
+        groupName: config.groupName,
+        groupAvatar: config.groupAvatar,
+        groupValue: config.groupValue
+      },
+      null,
+      2
+    )
+  );
 
   writeConfig(config);
 
@@ -399,12 +412,19 @@ async function updateGroup(groupValue: string): Promise<VkRendererState> {
   config.groupName = preview.name || normalizedGroup;
   config.groupAvatar = preview.avatar || '';
 
-  console.log('config before write:', JSON.stringify({
-    groupId: config.groupId,
-    groupName: config.groupName,
-    groupAvatar: config.groupAvatar,
-    groupValue: config.groupValue
-  }, null, 2));
+  console.log(
+    'config before write:',
+    JSON.stringify(
+      {
+        groupId: config.groupId,
+        groupName: config.groupName,
+        groupAvatar: config.groupAvatar,
+        groupValue: config.groupValue
+      },
+      null,
+      2
+    )
+  );
 
   writeConfig(config);
 
@@ -496,6 +516,184 @@ async function publishVkPost(message: string): Promise<VkPublishResult> {
   };
 }
 
+function buildMultipartBody(file: VkImagePayload, boundary: string): Buffer {
+  const header =
+    `--${boundary}\r\n` +
+    `Content-Disposition: form-data; name="photo"; filename="${file.name}"\r\n` +
+    `Content-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
+
+  const footer = `\r\n--${boundary}--\r\n`;
+
+  return Buffer.concat([
+    Buffer.from(header, 'utf8'),
+    Buffer.from(file.dataBase64, 'base64'),
+    Buffer.from(footer, 'utf8')
+  ]);
+}
+
+function uploadFileToVk(uploadUrl: string, file: VkImagePayload): Promise<{ server: number; photo: string; hash: string }> {
+  return new Promise((resolve, reject) => {
+    const boundary = `----ElectronSocialPoster${Date.now()}`;
+    const body = buildMultipartBody(file, boundary);
+    const url = new URL(uploadUrl);
+
+    const request = https.request(
+      {
+        method: 'POST',
+        hostname: url.hostname,
+        path: `${url.pathname}${url.search}`,
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': body.length
+        }
+      },
+      (response) => {
+        let rawData = '';
+
+        response.on('data', (chunk) => {
+          rawData += chunk;
+        });
+
+        response.on('end', () => {
+          try {
+            const parsed = JSON.parse(rawData) as {
+              server?: number;
+              photo?: string;
+              hash?: string;
+              error?: string;
+              error_descr?: string;
+            };
+
+            if (!parsed.server || !parsed.photo || !parsed.hash) {
+              reject(new Error(parsed.error_descr || parsed.error || 'Не удалось загрузить изображение в VK.'));
+              return;
+            }
+
+            resolve({
+              server: parsed.server,
+              photo: parsed.photo,
+              hash: parsed.hash
+            });
+          } catch {
+            reject(new Error('Не удалось разобрать ответ загрузки изображения VK.'));
+          }
+        });
+      }
+    );
+
+    request.on('error', () => {
+      reject(new Error('Ошибка сети при загрузке изображения в VK.'));
+    });
+
+    request.write(body);
+    request.end();
+  });
+}
+
+async function uploadWallPhotosByUserToken(
+  userToken: string,
+  groupId: number,
+  images: VkImagePayload[]
+): Promise<string[]> {
+  const attachments: string[] = [];
+
+  for (const image of images) {
+    const uploadServer = await vkApiRequest<{ upload_url: string }>('photos.getWallUploadServer', {
+      access_token: userToken,
+      group_id: String(groupId)
+    });
+
+    const uploadResult = await uploadFileToVk(uploadServer.upload_url, image);
+
+    const savedPhotos = await vkApiRequest<
+      Array<{
+        id: number;
+        owner_id: number;
+      }>
+    >('photos.saveWallPhoto', {
+      access_token: userToken,
+      group_id: String(groupId),
+      photo: uploadResult.photo,
+      server: String(uploadResult.server),
+      hash: uploadResult.hash
+    });
+
+    const saved = savedPhotos[0];
+
+    if (!saved) {
+      throw new Error('VK не вернул сохранённую фотографию.');
+    }
+
+    attachments.push(`photo${saved.owner_id}_${saved.id}`);
+  }
+
+  return attachments;
+}
+
+async function publishVkPostByUserToken(
+  message: string,
+  images: VkImagePayload[] = []
+): Promise<VkPublishResult> {
+  const normalizedMessage = message.trim();
+
+  if (!normalizedMessage && images.length === 0) {
+    throw new Error('Введите текст поста или выберите изображение.');
+  }
+
+  const config = readConfig();
+
+  if (!config.userTokenEncrypted) {
+    throw new Error('Пользовательский токен VK не сохранён.');
+  }
+
+  if (!config.groupValue) {
+    throw new Error('Группа VK не указана.');
+  }
+
+  const token = decryptToken(config.userTokenEncrypted);
+  const groupId = extractNumericGroupId(config.groupValue);
+
+  if (!groupId) {
+    throw new Error('Для публикации укажи numeric ID группы, например: 123456789');
+  }
+
+  let attachments = '';
+
+  if (images.length > 0) {
+    const photoAttachments = await uploadWallPhotosByUserToken(token, groupId, images);
+    attachments = photoAttachments.join(',');
+  }
+
+  const requestParams: Record<string, string> = {
+    owner_id: `-${groupId}`,
+    from_group: '1',
+    access_token: token
+  };
+
+  if (normalizedMessage) {
+    requestParams.message = normalizedMessage;
+  }
+
+  if (attachments) {
+    requestParams.attachments = attachments;
+  }
+
+  const response = await vkApiRequest<{ post_id: number }>('wall.post', requestParams);
+
+  if (config.groupId !== groupId) {
+    config.groupId = groupId;
+    writeConfig(config);
+  }
+
+  const postUrl = `https://vk.com/wall-${groupId}_${response.post_id}`;
+
+  return {
+    success: true,
+    postId: response.post_id,
+    postUrl
+  };
+}
+
 async function saveUserSettings(token: string): Promise<VkUserRendererState> {
   const normalizedToken = token.trim();
 
@@ -503,13 +701,15 @@ async function saveUserSettings(token: string): Promise<VkUserRendererState> {
     throw new Error('Введите пользовательский токен.');
   }
 
-  const users = await vkApiRequest<Array<{
-    id: number;
-    first_name: string;
-    last_name: string;
-    photo_100?: string;
-    screen_name?: string;
-  }>>('users.get', {
+  const users = await vkApiRequest<
+    Array<{
+      id: number;
+      first_name: string;
+      last_name: string;
+      photo_100?: string;
+      screen_name?: string;
+    }>
+  >('users.get', {
     access_token: normalizedToken,
     fields: 'photo_100,screen_name'
   });
@@ -597,6 +797,13 @@ app.whenReady().then(() => {
   ipcMain.handle('vk-user:disconnect', () => {
     return clearUserSettings();
   });
+
+  ipcMain.handle(
+    'vk-user:publish-post',
+    async (_event, payload: { message: string; images?: VkImagePayload[] }) => {
+      return publishVkPostByUserToken(payload.message, payload.images ?? []);
+    }
+  );
 
   createWindow();
 

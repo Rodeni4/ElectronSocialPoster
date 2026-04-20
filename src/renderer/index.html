@@ -35,6 +35,28 @@
 
         <div id="vkPostStatus" class="post-status"></div>
       </section>
+
+      <section class="vk-card vk-post-card">
+        <div class="vk-card__header">
+          <div class="vk-card__title">Отправить пост (VK User)</div>
+        </div>
+
+        <div class="field">
+          <textarea id="vkUserPostText" placeholder="Введите текст поста..." rows="6"></textarea>
+        </div>
+
+        <div class="field">
+          <input id="vkUserPostImagesInput" type="file" accept="image/*" multiple />
+        </div>
+
+        <div id="vkUserPostFilesText" class="post-files-text"></div>
+
+        <div class="actions">
+          <button id="vkUserPostButton" class="btn btn--primary" type="button">Опубликовать</button>
+        </div>
+
+        <div id="vkUserPostStatus" class="post-status"></div>
+      </section>
     </section>
 
     <section id="authTabPanel" class="tab-panel">
@@ -58,7 +80,8 @@
 
         <div id="vkAlert" class="alert alert--closable" hidden>
           <span id="vkAlertText"></span>
-          <button id="vkAlertCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
+          <button id="vkAlertCloseBtn" class="alert-close-btn" type="button"
+            aria-label="Закрыть уведомление">×</button>
         </div>
 
         <div id="vkSetupView">
@@ -166,7 +189,6 @@
                 </button>
               </span>
             </div>
-
           </div>
         </div>
       </section>
