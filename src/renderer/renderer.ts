@@ -1,4 +1,7 @@
-console.log('renderer.ts загрузился');
+import { initTabs } from './ui/tabs.js';
+import { initOkPlatform } from './platforms/ok.js';
+import { initVkUserPlatform } from './platforms/vk-user.js';
+import { initVkGroupPlatform } from './platforms/vk-group.js';
 
 declare global {
   interface Window {
@@ -15,6 +18,16 @@ declare global {
       getUserSettings: () => Promise<VkUserRendererState>;
       saveUserSettings: (payload: { token: string }) => Promise<VkUserRendererState>;
       disconnectUser: () => Promise<VkUserRendererState>;
+
+      getOkGroupSettings?: () => Promise<OkGroupRendererState>;
+      saveOkGroupSettings?: (payload: {
+        token: string;
+        groupValue: string;
+      }) => Promise<OkGroupRendererState>;
+      disconnectOkGroup?: () => Promise<OkGroupRendererState>;
+      getOkAuthSettings?: () => Promise<OkAuthRendererState>;
+      loginOkAuth?: () => Promise<OkAuthRendererState>;
+      disconnectOkAuth?: () => Promise<OkAuthRendererState>;
     };
   }
 }
@@ -38,6 +51,20 @@ type VkUserRendererState = {
   userAvatar: string;
   userScreenName: string;
   userConnected: boolean;
+};
+
+type OkGroupRendererState = {
+  tokenMasked: string;
+  groupId: string;
+  groupName: string;
+  groupAvatar: string;
+  isConnected: boolean;
+};
+
+type OkAuthRendererState = {
+  name: string;
+  avatar: string;
+  isConnected: boolean;
 };
 
 type VkImagePayload = {
@@ -109,30 +136,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const vkUserHeaderAvatar = document.getElementById('vkUserHeaderAvatar') as HTMLImageElement | null;
   const vkUserHeaderName = document.getElementById('vkUserHeaderName') as HTMLSpanElement | null;
 
+  const okGroupCard = document.getElementById('okGroupCard') as HTMLDivElement | null;
+  const okGroupStatusBadge = document.getElementById('okGroupStatusBadge') as HTMLDivElement | null;
+  const okGroupAlert = document.getElementById('okGroupAlert') as HTMLDivElement | null;
+  const okGroupAvatar = document.getElementById('okGroupAvatar') as HTMLImageElement | null;
+  const okGroupIdInput = document.getElementById('okGroupIdInput') as HTMLInputElement | null;
+  const okGroupTokenInput = document.getElementById('okGroupTokenInput') as HTMLInputElement | null;
+  const okGroupConnectButton = document.getElementById('okGroupConnectButton') as HTMLButtonElement | null;
+  const okGroupDisconnectButton = document.getElementById('okGroupDisconnectButton') as HTMLButtonElement | null;
+
+  const okAuthCard = document.getElementById('okAuthCard') as HTMLDivElement | null;
+  const okAuthStatusBadge = document.getElementById('okAuthStatusBadge') as HTMLDivElement | null;
+  const okAuthAlert = document.getElementById('okAuthAlert') as HTMLDivElement | null;
+  const okAuthAvatar = document.getElementById('okAuthAvatar') as HTMLImageElement | null;
+  const okAuthLoginButton = document.getElementById('okAuthLoginButton') as HTMLButtonElement | null;
+  const okAuthDisconnectButton = document.getElementById('okAuthDisconnectButton') as HTMLButtonElement | null;
+
   const tabPostBtn = document.getElementById('tabPostBtn') as HTMLElement | null;
   const tabAuthBtn = document.getElementById('tabAuthBtn') as HTMLElement | null;
   const postTabPanel = document.getElementById('postTabPanel') as HTMLElement | null;
   const authTabPanel = document.getElementById('authTabPanel') as HTMLElement | null;
 
-  function setActiveTab(tab: 'post' | 'auth') {
-    const isPost = tab === 'post';
+  initTabs({
+    tabPostBtn,
+    tabAuthBtn,
+    postTabPanel,
+    authTabPanel,
+    defaultTab: 'post'
+  });
 
-    tabPostBtn?.classList.toggle('is-active', isPost);
-    tabAuthBtn?.classList.toggle('is-active', !isPost);
-
-    postTabPanel?.classList.toggle('active', isPost);
-    authTabPanel?.classList.toggle('active', !isPost);
+  if (!window.vkAPI) {
+    console.error('window.vkAPI не найден. Проверь preload.ts и BrowserWindow preload.');
+    return;
   }
-
-  tabPostBtn?.addEventListener('click', () => {
-    setActiveTab('post');
-  });
-
-  tabAuthBtn?.addEventListener('click', () => {
-    setActiveTab('auth');
-  });
-
-  setActiveTab('post');
 
   const requiredElements = [
     vkStatusBadge,
@@ -188,601 +224,88 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  if (!window.vkAPI) {
-    console.error('window.vkAPI не найден. Проверь preload.ts и BrowserWindow preload.');
-    return;
-  }
+  initOkPlatform({
+    api: window.vkAPI,
 
-  function showAlert(message: string, type: 'error' | 'success' = 'error'): void {
-    vkAlert!.hidden = false;
-    vkAlertText!.textContent = message;
-    vkAlert!.className = `alert alert--${type} alert--closable`;
-  }
+    okGroupCard,
+    okGroupStatusBadge,
+    okGroupAlert,
+    okGroupAvatar,
+    okGroupIdInput,
+    okGroupTokenInput,
+    okGroupConnectButton,
+    okGroupDisconnectButton,
 
-  function hideAlert(): void {
-    vkAlert!.hidden = true;
-    vkAlertText!.textContent = '';
-    vkAlert!.className = 'alert';
-  }
-
-  function showUserAlert(message: string, type: 'error' | 'success' = 'error'): void {
-    vkUserAlert!.hidden = false;
-    vkUserAlertText!.textContent = message;
-    vkUserAlert!.className = `alert alert--${type} alert--closable`;
-  }
-
-  function hideUserAlert(): void {
-    vkUserAlert!.hidden = true;
-    vkUserAlertText!.textContent = '';
-    vkUserAlert!.className = 'alert';
-  }
-
-  function setBadge(text: string, mode: 'on' | 'off' | 'loading' | 'error'): void {
-    vkStatusBadge!.textContent = text;
-    vkStatusBadge!.className = `status-badge status-badge--${mode}`;
-  }
-
-  function setUserBadge(text: string, mode: 'on' | 'off' | 'loading' | 'error'): void {
-    vkUserStatusBadge!.textContent = text;
-    vkUserStatusBadge!.className = `status-badge status-badge--${mode}`;
-  }
-
-  function setPostStatus(
-    message: string,
-    type: 'idle' | 'success' | 'error' | 'loading' = 'idle',
-    allowHtml = false
-  ): void {
-    if (!message) {
-      vkPostStatus!.innerHTML = '';
-      vkPostStatus!.className = 'post-status';
-      return;
-    }
-
-    if (type === 'success' || type === 'error') {
-      const content = allowHtml ? message : message;
-
-      vkPostStatus!.innerHTML = `
-        <span>${content}</span>
-        <button id="vkPostStatusCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
-      `;
-
-      vkPostStatus!.className =
-        type === 'success'
-          ? 'post-status alert alert--success alert--closable'
-          : 'post-status alert alert--error alert--closable';
-
-      const closeBtn = document.getElementById('vkPostStatusCloseBtn') as HTMLButtonElement | null;
-      closeBtn?.addEventListener('click', () => {
-        setPostStatus('', 'idle');
-      });
-
-      return;
-    }
-
-    if (allowHtml) {
-      vkPostStatus!.innerHTML = message;
-    } else {
-      vkPostStatus!.textContent = message;
-    }
-
-    vkPostStatus!.className = `post-status post-status--${type}`;
-  }
-
-  function setUserPostStatus(
-    message: string,
-    type: 'idle' | 'success' | 'error' | 'loading' = 'idle',
-    allowHtml = false
-  ): void {
-    if (!message) {
-      vkUserPostStatus!.innerHTML = '';
-      vkUserPostStatus!.className = 'post-status';
-      return;
-    }
-
-    if (type === 'success' || type === 'error') {
-      const content = allowHtml ? message : message;
-
-      vkUserPostStatus!.innerHTML = `
-        <span>${content}</span>
-        <button id="vkUserPostStatusCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
-      `;
-
-      vkUserPostStatus!.className =
-        type === 'success'
-          ? 'post-status alert alert--success alert--closable'
-          : 'post-status alert alert--error alert--closable';
-
-      const closeBtn = document.getElementById('vkUserPostStatusCloseBtn') as HTMLButtonElement | null;
-      closeBtn?.addEventListener('click', () => {
-        setUserPostStatus('', 'idle');
-      });
-
-      return;
-    }
-
-    if (allowHtml) {
-      vkUserPostStatus!.innerHTML = message;
-    } else {
-      vkUserPostStatus!.textContent = message;
-    }
-
-    vkUserPostStatus!.className = `post-status post-status--${type}`;
-  }
-
-  function updateUserPostFilesText(): void {
-    const files = vkUserPostImagesInput?.files;
-
-    if (!files || files.length === 0) {
-      vkUserPostFilesText!.textContent = '';
-      return;
-    }
-
-    const names = Array.from(files).map((file) => file.name);
-    vkUserPostFilesText!.textContent = names.join(', ');
-  }
-
-  async function filesToPayload(files: FileList | null): Promise<VkImagePayload[]> {
-    if (!files || files.length === 0) {
-      return [];
-    }
-
-    const result: VkImagePayload[] = [];
-
-    for (const file of Array.from(files)) {
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-
-      let binary = '';
-      const chunkSize = 0x8000;
-
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        binary += String.fromCharCode(...chunk);
-      }
-
-      result.push({
-        name: file.name,
-        type: file.type || 'application/octet-stream',
-        dataBase64: btoa(binary)
-      });
-    }
-
-    return result;
-  }
-
-  vkUserPostImagesInput!.addEventListener('change', () => {
-    updateUserPostFilesText();
+    okAuthCard,
+    okAuthStatusBadge,
+    okAuthAlert,
+    okAuthAvatar,
+    okAuthLoginButton,
+    okAuthDisconnectButton
   });
 
-  function renderState(state: VkRendererState): void {
-    if (state.isConnected) {
-      setBadge('Подключено', 'on');
+  initVkUserPlatform({
+    api: window.vkAPI,
 
-      vkSetupView!.hidden = true;
-      vkConnectedView!.hidden = false;
-      vkDisconnectBtn!.hidden = false;
+    vkUserStatusBadge,
+    vkUserAlert,
+    vkUserAlertText,
+    vkUserAlertCloseBtn,
 
-      vkGroupText!.textContent = state.groupValue || state.groupName || '—';
-      vkGroupHeaderName!.textContent = state.groupName || '';
-      vkTokenText!.textContent = state.tokenMasked || 'Скрыт';
+    vkUserSetupView,
+    vkUserConnectedView,
 
-      vkGroupEditBox!.hidden = true;
-      vkGroupEditInput!.value = state.groupValue || '';
+    vkUserTokenInput,
+    vkUserSaveBtn,
+    vkUserDisconnectBtn,
+    vkUserChangeTokenBtn,
 
-      vkGroupInput!.value = state.groupValue || '';
-      vkTokenInput!.value = '';
+    vkUserNameText,
+    vkUserTokenText,
 
-      if (state.groupAvatar) {
-        vkGroupHeaderAvatar!.src = state.groupAvatar;
-        vkGroupHeaderAvatar!.hidden = false;
-      } else {
-        vkGroupHeaderAvatar!.src = '';
-        vkGroupHeaderAvatar!.hidden = true;
-      }
+    vkUserHeaderAvatar,
+    vkUserHeaderName,
 
-      vkPostButton!.disabled = false;
-      vkPostText!.disabled = false;
-
-      if (!vkPostStatus!.textContent) {
-        setPostStatus('');
-      }
-    } else {
-      setBadge('Не подключено', 'off');
-
-      vkSetupView!.hidden = false;
-      vkConnectedView!.hidden = true;
-      vkDisconnectBtn!.hidden = true;
-
-      vkGroupInput!.value = state.groupValue || '';
-      vkTokenInput!.value = '';
-
-      vkGroupText!.textContent = '';
-      vkGroupHeaderName!.textContent = '';
-      vkGroupHeaderAvatar!.src = '';
-      vkGroupHeaderAvatar!.hidden = true;
-
-      vkPostButton!.disabled = true;
-      vkPostText!.disabled = true;
-      setPostStatus('Сначала подключите VK Group.', 'idle');
-    }
-  }
-
-  function renderUserState(state: VkUserRendererState): void {
-    if (state.userConnected) {
-      setUserBadge('Подключено', 'on');
-
-      vkUserSetupView!.hidden = true;
-      vkUserConnectedView!.hidden = false;
-      vkUserDisconnectBtn!.hidden = false;
-
-      vkUserPostButton!.disabled = false;
-      vkUserPostText!.disabled = false;
-      vkUserPostImagesInput!.disabled = false;
-
-      vkUserTokenInput!.value = '';
-
-      vkUserHeaderName!.textContent = state.userName || '';
-
-      if (state.userScreenName) {
-        vkUserNameText!.textContent = `@${state.userScreenName}`;
-      } else if (state.userId) {
-        vkUserNameText!.textContent = `id${state.userId}`;
-      } else {
-        vkUserNameText!.textContent = '—';
-      }
-
-      vkUserTokenText!.textContent = state.userTokenMasked || 'Скрыт';
-
-      if (state.userAvatar) {
-        vkUserHeaderAvatar!.src = state.userAvatar;
-        vkUserHeaderAvatar!.hidden = false;
-      } else {
-        vkUserHeaderAvatar!.src = '';
-        vkUserHeaderAvatar!.hidden = true;
-      }
-    } else {
-      setUserBadge('Не подключено', 'off');
-
-      vkUserHeaderAvatar!.src = '';
-      vkUserHeaderAvatar!.hidden = true;
-      vkUserHeaderName!.textContent = '';
-
-      vkUserSetupView!.hidden = false;
-      vkUserConnectedView!.hidden = true;
-      vkUserDisconnectBtn!.hidden = true;
-
-      vkUserTokenInput!.value = '';
-      vkUserNameText!.textContent = '—';
-      vkUserTokenText!.textContent = '';
-
-      vkUserPostButton!.disabled = true;
-      vkUserPostText!.disabled = true;
-      vkUserPostImagesInput!.disabled = true;
-      vkUserPostImagesInput!.value = '';
-      vkUserPostFilesText!.textContent = '';
-      setUserPostStatus('Сначала подключите VK User.', 'idle');
-    }
-  }
-
-  function setLoadingState(isLoading: boolean): void {
-    vkSaveBtn!.disabled = isLoading;
-    vkTokenInput!.disabled = isLoading;
-    vkGroupInput!.disabled = isLoading;
-
-    if (isLoading) {
-      setBadge('Проверяем...', 'loading');
-    }
-  }
-
-  function setUserLoadingState(isLoading: boolean): void {
-    vkUserSaveBtn!.disabled = isLoading;
-    vkUserTokenInput!.disabled = isLoading;
-
-    if (isLoading) {
-      setUserBadge('Проверяем...', 'loading');
-    }
-  }
-
-  function setPostLoadingState(isLoading: boolean): void {
-    vkPostButton!.disabled = isLoading;
-    vkPostText!.disabled = isLoading;
-
-    if (isLoading) {
-      setPostStatus('Отправка...', 'loading');
-    }
-  }
-
-  function setUserPostLoadingState(isLoading: boolean): void {
-    vkUserPostButton!.disabled = isLoading;
-    vkUserPostText!.disabled = isLoading;
-    vkUserPostImagesInput!.disabled = isLoading;
-
-    if (isLoading) {
-      setUserPostStatus('Отправка...', 'loading');
-    }
-  }
-
-  async function loadVkState(): Promise<void> {
-    try {
-      hideAlert();
-      const state = await window.vkAPI!.getSettings();
-      console.log('VK GROUP STATE:', state);
-      renderState(state);
-    } catch (error) {
-      setBadge('Ошибка', 'error');
-      showAlert(error instanceof Error ? error.message : 'Не удалось загрузить настройки VK.');
-    }
-  }
-
-  async function loadVkUserState(): Promise<void> {
-    try {
-      hideUserAlert();
-      const state = await window.vkAPI!.getUserSettings();
-      renderUserState(state);
-    } catch (error) {
-      setUserBadge('Ошибка', 'error');
-      showUserAlert(error instanceof Error ? error.message : 'Не удалось загрузить настройки VK User.');
-    }
-  }
-
-  vkSaveBtn!.addEventListener('click', async () => {
-    try {
-      hideAlert();
-
-      const token = vkTokenInput!.value.trim();
-      const groupValue = vkGroupInput!.value.trim();
-
-      if (!token) {
-        showAlert('Введите токен.');
-        vkTokenInput!.focus();
-        return;
-      }
-
-      if (!groupValue) {
-        showAlert('Введите ID группы или short name.');
-        vkGroupInput!.focus();
-        return;
-      }
-
-      setLoadingState(true);
-
-      const state = await window.vkAPI!.saveSettings({ token, groupValue });
-      renderState(state);
-      showAlert('VK Group подключён и сохранён.', 'success');
-    } catch (error) {
-      setBadge('Ошибка', 'error');
-      showAlert(error instanceof Error ? error.message : 'Не удалось подключить VK Group.');
-    } finally {
-      setLoadingState(false);
-    }
+    vkUserPostText,
+    vkUserPostButton,
+    vkUserPostStatus,
+    vkUserPostImagesInput,
+    vkUserPostFilesText
   });
 
-  vkChangeTokenBtn!.addEventListener('click', async () => {
-    try {
-      hideAlert();
-      const currentState = await window.vkAPI!.getSettings();
+  initVkGroupPlatform({
+    api: window.vkAPI,
 
-      vkSetupView!.hidden = false;
-      vkConnectedView!.hidden = true;
+    vkStatusBadge,
+    vkAlert,
+    vkAlertText,
+    vkAlertCloseBtn,
 
-      vkGroupInput!.value = currentState.groupValue || '';
-      vkTokenInput!.value = '';
-      vkTokenInput!.focus();
+    vkSetupView,
+    vkConnectedView,
 
-      setBadge('Не подключено', 'off');
-    } catch (error) {
-      setBadge('Ошибка', 'error');
-      showAlert(error instanceof Error ? error.message : 'Не удалось перейти к смене токена.');
-    }
+    vkTokenInput,
+    vkGroupInput,
+
+    vkSaveBtn,
+    vkChangeTokenBtn,
+    vkChangeGroupBtn,
+    vkDisconnectBtn,
+
+    vkGroupText,
+    vkTokenText,
+    vkGroupEditBox,
+    vkGroupEditInput,
+    vkGroupSaveBtn,
+    vkGroupCancelBtn,
+
+    vkGroupHeaderAvatar,
+    vkGroupHeaderName,
+
+    vkPostText,
+    vkPostButton,
+    vkPostStatus
   });
-
-  vkChangeGroupBtn!.addEventListener('click', () => {
-    hideAlert();
-    vkGroupEditBox!.hidden = false;
-    vkGroupEditInput!.value = vkGroupText!.textContent?.trim() || '';
-    vkGroupEditInput!.focus();
-    vkGroupEditInput!.select();
-  });
-
-  vkGroupSaveBtn!.addEventListener('click', async () => {
-    try {
-      hideAlert();
-
-      const newGroupValue = vkGroupEditInput!.value.trim();
-
-      if (!newGroupValue) {
-        showAlert('Введите ID группы или short name.');
-        vkGroupEditInput!.focus();
-        return;
-      }
-
-      setBadge('Проверяем...', 'loading');
-
-      const state = await window.vkAPI!.updateGroup({ groupValue: newGroupValue });
-      renderState(state);
-      showAlert('Группа обновлена.', 'success');
-    } catch (error) {
-      setBadge('Ошибка', 'error');
-      showAlert(error instanceof Error ? error.message : 'Не удалось изменить группу.');
-    }
-  });
-
-  vkGroupCancelBtn!.addEventListener('click', () => {
-    vkGroupEditBox!.hidden = true;
-    hideAlert();
-    setBadge('Подключено', 'on');
-  });
-
-  vkDisconnectBtn!.addEventListener('click', async () => {
-    try {
-      hideAlert();
-
-      const confirmed = window.confirm('Отключить VK Group и удалить сохранённый токен?');
-      if (!confirmed) {
-        return;
-      }
-
-      const state = await window.vkAPI!.disconnect();
-      renderState(state);
-      showAlert('VK Group отключён.', 'success');
-    } catch (error) {
-      setBadge('Ошибка', 'error');
-      showAlert(error instanceof Error ? error.message : 'Не удалось отключить VK Group.');
-    }
-  });
-
-  vkPostButton!.addEventListener('click', async () => {
-    try {
-      hideAlert();
-      setPostStatus('', 'idle');
-
-      const message = vkPostText!.value.trim();
-
-      if (!message) {
-        setPostStatus('Введите текст поста.', 'error');
-        vkPostText!.focus();
-        return;
-      }
-
-      setPostLoadingState(true);
-
-      const result = await window.vkAPI!.publishPost({ message });
-
-      if (result.success) {
-        vkPostText!.value = '';
-
-        if (result.postUrl) {
-          setPostStatus(
-            `Пост опубликован: <a href="${result.postUrl}" target="_blank" rel="noopener noreferrer">${result.postUrl}</a>`,
-            'success',
-            true
-          );
-        } else {
-          setPostStatus('Пост опубликован.', 'success');
-        }
-      } else {
-        setPostStatus(result.error || 'Не удалось опубликовать пост.', 'error');
-      }
-    } catch (error) {
-      setPostStatus(error instanceof Error ? error.message : 'Ошибка отправки поста.', 'error');
-    } finally {
-      const state = await window.vkAPI!.getSettings();
-      renderState(state);
-    }
-  });
-
-  vkUserPostButton!.addEventListener('click', async () => {
-    try {
-      hideUserAlert();
-      setUserPostStatus('', 'idle');
-
-      const message = vkUserPostText!.value.trim();
-      const images = await filesToPayload(vkUserPostImagesInput!.files);
-
-      if (!message && images.length === 0) {
-        setUserPostStatus('Введите текст поста или выберите изображение.', 'error');
-        vkUserPostText!.focus();
-        return;
-      }
-
-      setUserPostLoadingState(true);
-
-      const result = await window.vkAPI!.publishPostByUserToken({
-        message,
-        images
-      });
-
-      if (result.success) {
-        vkUserPostText!.value = '';
-        vkUserPostImagesInput!.value = '';
-        vkUserPostFilesText!.textContent = '';
-
-        if (result.postUrl) {
-          setUserPostStatus(
-            `Пост опубликован: <a href="${result.postUrl}" target="_blank" rel="noopener noreferrer">${result.postUrl}</a>`,
-            'success',
-            true
-          );
-        } else {
-          setUserPostStatus('Пост опубликован.', 'success');
-        }
-      } else {
-        setUserPostStatus(result.error || 'Не удалось опубликовать пост.', 'error');
-      }
-    } catch (error) {
-      setUserPostStatus(error instanceof Error ? error.message : 'Ошибка отправки поста.', 'error');
-    } finally {
-      const state = await window.vkAPI!.getUserSettings();
-      renderUserState(state);
-    }
-  });
-
-  vkAlertCloseBtn!.addEventListener('click', () => {
-    hideAlert();
-  });
-
-  vkUserAlertCloseBtn!.addEventListener('click', () => {
-    hideUserAlert();
-  });
-
-  vkUserSaveBtn!.addEventListener('click', async () => {
-    try {
-      hideUserAlert();
-
-      const token = vkUserTokenInput!.value.trim();
-
-      if (!token) {
-        showUserAlert('Введите пользовательский токен.');
-        vkUserTokenInput!.focus();
-        return;
-      }
-
-      setUserLoadingState(true);
-
-      const state = await window.vkAPI!.saveUserSettings({ token });
-      renderUserState(state);
-      showUserAlert('VK User подключён и сохранён.', 'success');
-    } catch (error) {
-      setUserBadge('Ошибка', 'error');
-      showUserAlert(error instanceof Error ? error.message : 'Не удалось подключить VK User.');
-    } finally {
-      setUserLoadingState(false);
-    }
-  });
-
-  vkUserChangeTokenBtn!.addEventListener('click', () => {
-    hideUserAlert();
-
-    vkUserSetupView!.hidden = false;
-    vkUserConnectedView!.hidden = true;
-    vkUserDisconnectBtn!.hidden = true;
-
-    vkUserTokenInput!.value = '';
-    vkUserTokenInput!.focus();
-
-    setUserBadge('Не подключено', 'off');
-  });
-
-  vkUserDisconnectBtn!.addEventListener('click', async () => {
-    try {
-      hideUserAlert();
-
-      const confirmed = window.confirm('Отключить VK User и удалить сохранённый токен?');
-      if (!confirmed) {
-        return;
-      }
-
-      const state = await window.vkAPI!.disconnectUser();
-      renderUserState(state);
-      showUserAlert('VK User отключён.', 'success');
-    } catch (error) {
-      setUserBadge('Ошибка', 'error');
-      showUserAlert(error instanceof Error ? error.message : 'Не удалось отключить VK User.');
-    }
-  });
-
-  void loadVkState();
-  void loadVkUserState();
 });
 
 export { };

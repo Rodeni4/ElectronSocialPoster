@@ -21,6 +21,20 @@ type VkUserRendererState = {
   userConnected: boolean;
 };
 
+type OkGroupRendererState = {
+  tokenMasked: string;
+  groupId: string;
+  groupName: string;
+  groupAvatar: string;
+  isConnected: boolean;
+};
+
+type OkAuthRendererState = {
+  name: string;
+  avatar: string;
+  isConnected: boolean;
+};
+
 type VkImagePayload = {
   name: string;
   type: string;
@@ -32,6 +46,11 @@ type VkPublishResult = {
   error?: string;
   postUrl?: string;
   postId?: number;
+};
+
+type SaveOkGroupPayload = {
+  groupValue: string;
+  token: string;
 };
 
 contextBridge.exposeInMainWorld('vkAPI', {
@@ -61,5 +80,24 @@ contextBridge.exposeInMainWorld('vkAPI', {
     message: string;
     images?: VkImagePayload[];
   }): Promise<VkPublishResult> =>
-    ipcRenderer.invoke('vk-user:publish-post', payload)
+    ipcRenderer.invoke('vk-user:publish-post', payload),
+
+  getOkGroupSettings: (): Promise<OkGroupRendererState> =>
+    ipcRenderer.invoke('ok-group:get-settings'),
+
+  saveOkGroupSettings: (payload: SaveOkGroupPayload): Promise<OkGroupRendererState> =>
+    ipcRenderer.invoke('ok-group:save-settings', payload),
+
+  disconnectOkGroup: (): Promise<OkGroupRendererState> =>
+    ipcRenderer.invoke('ok-group:disconnect'),
+
+  getOkAuthSettings: (): Promise<OkAuthRendererState> =>
+    ipcRenderer.invoke('ok-auth:get-settings'),
+
+  loginOkAuth: (): Promise<OkAuthRendererState> =>
+    ipcRenderer.invoke('ok-auth:login'),
+
+  disconnectOkAuth: (): Promise<OkAuthRendererState> =>
+    ipcRenderer.invoke('ok-auth:disconnect')
+
 });

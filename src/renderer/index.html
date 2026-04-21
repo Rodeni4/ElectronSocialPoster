@@ -80,8 +80,7 @@
 
         <div id="vkAlert" class="alert alert--closable" hidden>
           <span id="vkAlertText"></span>
-          <button id="vkAlertCloseBtn" class="alert-close-btn" type="button"
-            aria-label="Закрыть уведомление">×</button>
+          <button id="vkAlertCloseBtn" class="alert-close-btn" type="button" aria-label="Закрыть уведомление">×</button>
         </div>
 
         <div id="vkSetupView">
@@ -189,6 +188,72 @@
                 </button>
               </span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="vk-card" id="okAuthCard">
+        <div class="vk-card__header">
+          <div class="vk-card__title-wrap">
+            <img id="okAuthAvatar" class="vk-card__avatar" src="" alt="" hidden />
+            <div class="vk-card__title">OK Auth</div>
+          </div>
+
+          <div class="vk-card__header-actions">
+            <span id="okAuthStatusBadge" class="status-badge status-badge--off">
+              Не подключено
+            </span>
+          </div>
+        </div>
+
+        <div id="okAuthAlert" class="alert" hidden></div>
+
+        <div class="group-edit-box" id="okAuthBox">
+          <div class="actions actions--multi">
+            <button id="okAuthLoginButton" class="btn btn--primary" type="button">
+              Войти через OK
+            </button>
+
+            <button id="okAuthDisconnectButton" class="btn btn--danger" type="button" hidden>
+              Отключить
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="vk-card" id="okGroupCard">
+        <div class="vk-card__header">
+          <div class="vk-card__title-wrap">
+            <img id="okGroupAvatar" class="vk-card__avatar" src="" alt="" hidden />
+            <div class="vk-card__title">OK Group</div>
+          </div>
+
+          <div class="vk-card__header-actions">
+            <span id="okGroupStatusBadge" class="status-badge status-badge--off">
+              Не подключено
+            </span>
+          </div>
+        </div>
+
+        <div id="okGroupAlert" class="alert" hidden></div>
+
+        <div class="group-edit-box" id="okGroupEditBox">
+          <div class="field">
+            <input id="okGroupIdInput" type="text" placeholder="ID или ссылка на группу OK" autocomplete="off" />
+          </div>
+
+          <div class="field">
+            <input id="okGroupTokenInput" type="password" placeholder="Access token OK" autocomplete="off" />
+          </div>
+
+          <div class="actions actions--multi">
+            <button id="okGroupConnectButton" class="btn btn--primary" type="button">
+              Сохранить
+            </button>
+
+            <button id="okGroupDisconnectButton" class="btn btn--danger" type="button" hidden>
+              Отключить
+            </button>
           </div>
         </div>
       </section>
